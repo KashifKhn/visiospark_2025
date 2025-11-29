@@ -295,24 +295,22 @@ class _VoteButton extends StatelessWidget {
 class _StatChip extends StatelessWidget {
   final IconData icon;
   final String value;
-  final Color? color;
 
   const _StatChip({
     required this.icon,
     required this.value,
-    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: color ?? AppColors.gray500),
+        Icon(icon, size: 16, color: AppColors.gray500),
         const SizedBox(width: 4),
         Text(
           value,
-          style: TextStyle(
-            color: color ?? AppColors.gray500,
+          style: const TextStyle(
+            color: AppColors.gray500,
             fontSize: 12,
           ),
         ),

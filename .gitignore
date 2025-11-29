@@ -1,4 +1,5 @@
 # Miscellaneous
+
 *.md
 !README.md
 *.class
@@ -45,3 +46,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+lib/core/config/API_Constant.dart
+lib/core/config/api_constant.dart

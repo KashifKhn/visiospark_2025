@@ -56,6 +56,16 @@ dependencies:
   
   # Markdown (for AI responses & forum)
   flutter_markdown: ^0.7.4+3
+  
+  # Calendar & Sharing
+  add_2_calendar: ^3.0.1
+  share_plus: ^10.1.2
+  
+  # CSV Export
+  csv: ^6.0.0
+  
+  # Notifications
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

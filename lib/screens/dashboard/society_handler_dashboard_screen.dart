@@ -48,43 +48,52 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
       final events = await _eventService.getEvents(societyId: societyId);
       final stats = await _societyService.getSocietyStats(societyId);
       
+      AppLogger.debug('Loaded society: ${society?.name}');
+      AppLogger.debug('Loaded ${events.length} events');
+      
       // Build recent activities from events
       final activities = <Map<String, dynamic>>[];
       
-      // Add recently created events
+      // Add recently created events (last 30 days for testing)
       final recentEvents = events
-          .where((e) => e.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 7))))
-          .take(3)
+          .where((e) => e.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 30))))
           .toList();
       recentEvents.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
-      for (final event in recentEvents) {
+      AppLogger.debug('Found ${recentEvents.length} recent events');
+      
+      for (final event in recentEvents.take(3)) {
         activities.add({
           'icon': Icons.event,
           'title': 'Event "${event.title}" created',
           'time': _getRelativeTime(event.createdAt),
+          'timestamp': event.createdAt,
           'color': AppColors.primary,
         });
       }
       
       // Add completed events
       final completedEvents = events
-          .where((e) => e.status == 'completed' && e.dateTime.isAfter(DateTime.now().subtract(const Duration(days: 7))))
-          .take(2)
+          .where((e) => e.status == 'completed' && e.dateTime.isAfter(DateTime.now().subtract(const Duration(days: 30))))
           .toList();
       completedEvents.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       
-      for (final event in completedEvents) {
+      AppLogger.debug('Found ${completedEvents.length} completed events');
+      
+      for (final event in completedEvents.take(2)) {
         activities.add({
           'icon': Icons.check_circle,
           'title': 'Event "${event.title}" completed',
           'time': _getRelativeTime(event.dateTime),
+          'timestamp': event.dateTime,
           'color': AppColors.success,
         });
       }
       
-      // Sort all activities by time
-      activities.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
+      // Sort all activities by timestamp
+      activities.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+
+      AppLogger.debug('Total activities: ${activities.length}');
 
       setState(() {
         _society = society;
@@ -106,7 +115,13 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_society?.name ?? 'Society Dashboard'),
+        title: Text(
+          _isLoading 
+            ? 'Loading...' 
+            : (_society != null 
+              ? '${_society!.shortName} Dashboard' 
+              : 'Society Dashboard')
+        ),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -214,22 +229,23 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                   children: [
                     Text(
-                      _society?.name ?? 'Society',
+                      _society?.name ?? 'Loading Society...',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Text(
-                      'Handler Dashboard',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14,
+                    if (_society != null)
+                      Text(
+                        '${_society!.shortName} Handler Dashboard',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -426,10 +442,23 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
 
   Widget _buildEventsSection() {
     final now = DateTime.now();
+    
+    AppLogger.debug('Building events section. Total events: ${_societyEvents.length}');
+    for (var event in _societyEvents) {
+      AppLogger.debug('Event: ${event.title}, Date: ${event.dateTime}, Status: ${event.status}');
+    }
+    
     final upcomingEvents = _societyEvents
-        .where((e) => e.dateTime.isAfter(now) && e.status != 'cancelled')
+        .where((e) {
+          final isAfter = e.dateTime.isAfter(now);
+          final notCancelled = e.status != 'cancelled';
+          AppLogger.debug('${e.title}: isAfter=$isAfter, notCancelled=$notCancelled');
+          return isAfter && notCancelled;
+        })
         .take(5)
         .toList();
+    
+    AppLogger.debug('Upcoming events count: ${upcomingEvents.length}');
     
     // Sort by date
     upcomingEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
@@ -453,7 +482,7 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
           ],
         ),
         const SizedBox(height: 12),
-        if (upcomingEvents.isEmpty)
+        if (_societyEvents.isEmpty)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -467,7 +496,7 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No upcoming events',
+                      'No events yet',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 16,
@@ -482,6 +511,63 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
                     ),
                   ],
                 ),
+              ),
+            ),
+          )
+        else if (upcomingEvents.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(
+                    'No upcoming events',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'All your events have passed. Create a new one!',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppConstants.createEventRoute);
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Event'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getSocietyColor(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Recent Events (${_societyEvents.length})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _societyEvents.take(3).length,
+                    itemBuilder: (context, index) {
+                      return _buildEventCard(_societyEvents[index]);
+                    },
+                  ),
+                ],
               ),
             ),
           )

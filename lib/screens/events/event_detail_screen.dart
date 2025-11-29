@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/event_service.dart';
 import '../../services/registration_service.dart';
@@ -39,8 +41,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final TextEditingController _questionController = TextEditingController();
   final TextEditingController _aiQuestionController = TextEditingController();
   bool _isPostingQuestion = false;
-  List<AIMessageModel> _aiMessages = [];
+  final List<AIMessageModel> _aiMessages = [];
   bool _isAIThinking = false;
+  String? _expandedQuestionId;
+  final Map<String, List<Map<String, dynamic>>> _questionAnswers = {};
+  final Map<String, TextEditingController> _answerControllers = {};
+  StateSetter? _modalStateSetter;
 
   @override
   void initState() {
@@ -255,15 +261,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.share),
-          onPressed: () {
-            // Share event functionality
-          },
+          onPressed: _shareEvent,
         ),
         IconButton(
           icon: const Icon(Icons.calendar_today),
-          onPressed: () {
-            // Add to calendar functionality
-          },
+          onPressed: _addToCalendar,
         ),
       ],
     );
@@ -1036,112 +1038,327 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
   
   Widget _buildQuestionCard(EventQuestionModel question) {
+    final isExpanded = _expandedQuestionId == question.id;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: _getSocietyColor().withValues(alpha: 0.2),
-                  child: Icon(
-                    Icons.person,
-                    size: 16,
-                    color: _getSocietyColor(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => _toggleQuestionExpansion(question.id),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        question.userName ?? 'Anonymous',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: _getSocietyColor().withValues(alpha: 0.2),
+                        child: Icon(
+                          Icons.person,
+                          size: 16,
+                          color: _getSocietyColor(),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              question.userName ?? 'Anonymous',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              _formatQuestionTime(question.createdAt),
+                              style: const TextStyle(
+                                color: AppColors.gray500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (question.isAnswered)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Answered',
+                            style: TextStyle(
+                              color: AppColors.success,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: AppColors.gray600,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    question.question,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.thumb_up_outlined),
+                        iconSize: 18,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _upvoteQuestion(question.id),
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        _formatQuestionTime(question.createdAt),
+                        '${question.upvotes}',
                         style: const TextStyle(
-                          color: AppColors.gray500,
                           fontSize: 12,
+                          color: AppColors.gray600,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.comment_outlined,
+                        size: 18,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${question.answerCount} answers',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.gray600,
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (question.isAnswered)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Answered',
-                      style: TextStyle(
-                        color: AppColors.success,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              question.question,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.5,
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.thumb_up_outlined),
-                  iconSize: 18,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {
-                    // Implement upvote
-                  },
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${question.upvotes}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.gray600,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.comment_outlined,
-                  size: 18,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${question.answerCount} answers',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.gray600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          if (isExpanded) _buildAnswersSection(question),
+        ],
       ),
     );
+  }
+  
+  Widget _buildAnswersSection(EventQuestionModel question) {
+    final answers = _questionAnswers[question.id] ?? [];
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.gray50,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.gray200,
+            width: 1,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Answers list
+          if (answers.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'No answers yet. Be the first to answer!',
+                  style: TextStyle(
+                    color: AppColors.gray500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...answers.map((answer) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.gray200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                          child: const Icon(Icons.person, size: 12, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          answer['user_name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _formatQuestionTime(answer['created_at']),
+                          style: const TextStyle(
+                            color: AppColors.gray500,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      answer['answer'],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )),
+          
+          const SizedBox(height: 12),
+          
+          // Answer input
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _answerControllers.putIfAbsent(
+                    question.id,
+                    () => TextEditingController(),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Write your answer...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  maxLines: 2,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(Icons.send, color: _getSocietyColor()),
+                onPressed: () => _postAnswer(question.id),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _toggleQuestionExpansion(String questionId) async {
+    setState(() {
+      if (_expandedQuestionId == questionId) {
+        _expandedQuestionId = null;
+      } else {
+        _expandedQuestionId = questionId;
+      }
+    });
+    
+    // Load answers if expanding
+    if (_expandedQuestionId == questionId && !_questionAnswers.containsKey(questionId)) {
+      try {
+        final answers = await _eventService.getQuestionAnswers(questionId);
+        if (mounted) {
+          setState(() {
+            _questionAnswers[questionId] = answers;
+          });
+        }
+      } catch (e) {
+        AppLogger.error('Error loading answers', e);
+      }
+    }
+  }
+  
+  Future<void> _postAnswer(String questionId) async {
+    final controller = _answerControllers[questionId];
+    if (controller == null || controller.text.trim().isEmpty) return;
+    
+    try {
+      await _eventService.postAnswer(questionId, controller.text.trim());
+      
+      // Reload answers
+      final answers = await _eventService.getQuestionAnswers(questionId);
+      
+      if (mounted) {
+        controller.clear();
+        setState(() {
+          _questionAnswers[questionId] = answers;
+        });
+        
+        // Reload questions to update answer count
+        final questions = await _loadQuestions();
+        setState(() {
+          _questions = questions;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Answer posted!')),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error posting answer', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error posting answer: $e')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _upvoteQuestion(String questionId) async {
+    try {
+      await _eventService.upvoteQuestion(questionId);
+      
+      // Reload questions to update upvote count
+      final questions = await _loadQuestions();
+      
+      if (mounted) {
+        setState(() {
+          _questions = questions;
+        });
+      }
+    } catch (e) {
+      AppLogger.error('Error upvoting question', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error upvoting: $e')),
+        );
+      }
+    }
   }
   
   String _formatQuestionTime(DateTime dateTime) {
@@ -1182,149 +1399,162 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
   
   Widget _buildAIChatSheet() {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _getSocietyColor().withValues(alpha: 0.1),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.smart_toy, color: _getSocietyColor()),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    return StatefulBuilder(
+      builder: (BuildContext context, StateSetter setModalState) {
+        _modalStateSetter = setModalState; // Store the setter
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _getSocietyColor().withValues(alpha: 0.1),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.smart_toy, color: _getSocietyColor()),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Ask AI About Event',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                _event!.title,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.gray600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Messages
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(16),
+                      reverse: true, // Show latest messages at bottom
+                      itemCount: _aiMessages.length,
+                      itemBuilder: (context, index) {
+                        // Reverse the index to show latest at bottom
+                        final message = _aiMessages[_aiMessages.length - 1 - index];
+                        return _buildAIMessageBubble(message);
+                      },
+                    ),
+                  ),
+                  
+                  // Loading indicator
+                  if (_isAIThinking)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
                         children: [
-                          const Text(
-                            'Ask AI About Event',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _getSocietyColor(),
                             ),
                           ),
-                          Text(
-                            _event!.title,
-                            style: const TextStyle(
-                              fontSize: 12,
+                          const SizedBox(width: 12),
+                          const Text(
+                            'AI is thinking...',
+                            style: TextStyle(
                               color: AppColors.gray600,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
+                  
+                  // Input
+                  Container(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 16,
                     ),
-                  ],
-                ),
-              ),
-              
-              // Messages
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _aiMessages.length,
-                  itemBuilder: (context, index) {
-                    return _buildAIMessageBubble(_aiMessages[index]);
-                  },
-                ),
-              ),
-              
-              // Loading indicator
-              if (_isAIThinking)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _getSocietyColor(),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -5),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'AI is thinking...',
-                        style: TextStyle(
-                          color: AppColors.gray600,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              
-              // Input
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
+                      ],
                     ),
-                  ],
-                ),
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _aiQuestionController,
-                          decoration: InputDecoration(
-                            hintText: 'Ask about the event...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _aiQuestionController,
+                            decoration: InputDecoration(
+                              hintText: 'Ask about the event...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.gray50,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
                             ),
-                            filled: true,
-                            fillColor: AppColors.gray50,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
+                            maxLines: 4,
+                            minLines: 1,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _sendAIMessage(),
                           ),
-                          maxLines: null,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _sendAIMessage(),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      CircleAvatar(
-                        backgroundColor: _getSocietyColor(),
-                        child: IconButton(
-                          icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                          onPressed: _isAIThinking ? null : _sendAIMessage,
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: _getSocietyColor(),
+                          child: IconButton(
+                            icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                            onPressed: _isAIThinking ? null : _sendAIMessage,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1381,30 +1611,37 @@ User Question: $userMessage
 Please provide a helpful answer about this event. Be concise and friendly.
 ''';
     
-    setState(() {
-      _aiMessages.add(AIMessageModel.user(userMessage));
-      _isAIThinking = true;
-    });
+    // Add user message and set thinking state
+    _aiMessages.add(AIMessageModel.user(userMessage));
+    _isAIThinking = true;
+    
+    // Update the modal UI
+    _modalStateSetter?.call(() {});
     
     try {
       final response = await _aiService.sendMessage(eventContext);
       
       if (!mounted) return;
       
-      setState(() {
-        _aiMessages.add(response);
-        _isAIThinking = false;
-      });
+      // Add AI response and stop thinking
+      _aiMessages.add(response);
+      _isAIThinking = false;
+      
+      // Update the modal UI
+      _modalStateSetter?.call(() {});
     } catch (e) {
       if (!mounted) return;
       
       AppLogger.error('AI error', e);
-      setState(() {
-        _aiMessages.add(AIMessageModel.ai(
-          'Sorry, I encountered an error. Please try again.'
-        ));
-        _isAIThinking = false;
-      });
+      
+      // Add error message and stop thinking
+      _aiMessages.add(AIMessageModel.ai(
+        'Sorry, I encountered an error. Please try again.'
+      ));
+      _isAIThinking = false;
+      
+      // Update the modal UI
+      _modalStateSetter?.call(() {});
     }
   }
   
@@ -1412,10 +1649,80 @@ Please provide a helpful answer about this event. Be concise and friendly.
     return type[0].toUpperCase() + type.substring(1);
   }
   
+  // Add event to calendar
+  Future<void> _addToCalendar() async {
+    if (_event == null) return;
+    
+    try {
+      final Event calendarEvent = Event(
+        title: _event!.title,
+        description: _event!.description,
+        location: _event!.venue,
+        startDate: _event!.dateTime,
+        endDate: _event!.endTime ?? _event!.dateTime.add(const Duration(hours: 2)),
+        iosParams: const IOSParams(
+          reminder: Duration(hours: 1),
+        ),
+        androidParams: const AndroidParams(
+          emailInvites: [],
+        ),
+      );
+
+      await Add2Calendar.addEvent2Cal(calendarEvent);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event added to calendar!')),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error adding to calendar', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding to calendar: $e')),
+        );
+      }
+    }
+  }
+  
+  // Share event
+  Future<void> _shareEvent() async {
+    if (_event == null) return;
+    
+    try {
+      final String shareText = '''
+🎉 ${_event!.title}
+
+📅 ${_formatDateTime(_event!.dateTime)}
+📍 ${_event!.venue}
+🏛️ ${_event!.society?.name ?? 'Unknown'}
+
+${_event!.description}
+
+Register now on UniWeek app!
+''';
+
+      await Share.share(
+        shareText,
+        subject: _event!.title,
+      );
+    } catch (e) {
+      AppLogger.error('Error sharing event', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sharing event: $e')),
+        );
+      }
+    }
+  }
+  
   @override
   void dispose() {
     _questionController.dispose();
     _aiQuestionController.dispose();
+    for (var controller in _answerControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 }

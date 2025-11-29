@@ -19,6 +19,7 @@ import 'providers/ai_provider.dart';
 import 'routes/app_routes.dart';
 
 import 'services/cache_service.dart';
+import 'services/notification_service.dart';
 import 'core/utils/logger.dart';
 
 Future<void> main() async {
@@ -46,6 +47,11 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+
+  // Initialize notifications
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+  await notificationService.requestPermissions();
 
   runApp(const MyApp());
 }

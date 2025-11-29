@@ -331,4 +331,75 @@ class EventService {
       rethrow;
     }
   }
+
+  // Get answers for a question
+  Future<List<Map<String, dynamic>>> getQuestionAnswers(String questionId) async {
+    try {
+      AppLogger.debug('Fetching answers for question: $questionId');
+      
+      final response = await _client
+          .from('event_answers')
+          .select('*, profiles(full_name)')
+          .eq('question_id', questionId)
+          .order('created_at', ascending: true);
+
+      final answers = response as List;
+      
+      AppLogger.success('Fetched ${answers.length} answers');
+      return answers.map((a) => {
+        'id': a['id'],
+        'answer': a['answer'],
+        'user_name': a['profiles']?['full_name'] ?? 'Anonymous',
+        'created_at': DateTime.parse(a['created_at']),
+      }).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching answers', e);
+      rethrow;
+    }
+  }
+
+  // Post an answer to a question
+  Future<void> postAnswer(String questionId, String answer) async {
+    try {
+      AppLogger.debug('Posting answer to question: $questionId');
+      
+      await _client.from('event_answers').insert({
+        'question_id': questionId,
+        'answer': answer,
+        'user_id': _client.auth.currentUser!.id,
+      });
+
+      AppLogger.success('Answer posted successfully');
+    } catch (e) {
+      AppLogger.error('Error posting answer', e);
+      rethrow;
+    }
+  }
+
+  // Upvote a question
+  Future<void> upvoteQuestion(String questionId) async {
+    try {
+      AppLogger.debug('Upvoting question: $questionId');
+      
+      // Get current upvote count
+      final question = await _client
+          .from('event_questions')
+          .select('upvotes')
+          .eq('id', questionId)
+          .single();
+      
+      final currentUpvotes = question['upvotes'] as int;
+      
+      // Increment upvote count
+      await _client
+          .from('event_questions')
+          .update({'upvotes': currentUpvotes + 1})
+          .eq('id', questionId);
+      
+      AppLogger.success('Question upvoted');
+    } catch (e) {
+      AppLogger.error('Error upvoting question', e);
+      rethrow;
+    }
+  }
 }

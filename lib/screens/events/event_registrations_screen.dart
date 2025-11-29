@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:csv/csv.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../models/registration_model.dart';
 import '../../models/event_model.dart';
 import '../../services/registration_service.dart';
 import '../../services/event_service.dart';
 import '../../theme/app_colors.dart';
+import '../../core/utils/logger.dart';
 
 class EventRegistrationsScreen extends StatefulWidget {
   final String eventId;
@@ -187,11 +192,63 @@ class _EventRegistrationsScreenState extends State<EventRegistrationsScreen> {
     );
   }
 
-  void _exportData(String format) {
-    // Placeholder for export functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Export as $format - Coming soon!')),
-    );
+  Future<void> _exportData(String format) async {
+    try {
+      // Prepare CSV data
+      final List<List<dynamic>> rows = [
+        ['Name', 'Email', 'Status', 'Registration Date'],
+      ];
+      
+      for (final reg in _filteredRegistrations) {
+        rows.add([
+          reg.user?.displayName ?? 'N/A',
+          reg.user?.email ?? 'N/A',
+          reg.status,
+          DateFormat('MMM dd, yyyy HH:mm').format(reg.registeredAt),
+        ]);
+      }
+      
+      final String csv = const ListToCsvConverter().convert(rows);
+      
+      if (format == 'csv') {
+        // Save as file and share
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/registrations_${_event?.title ?? 'event'}.csv');
+        await file.writeAsString(csv);
+        
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Event Registrations - ${_event?.title}',
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('CSV file created and shared!')),
+          );
+        }
+      } else if (format == 'share') {
+        // Share as text
+        final String shareText = '''
+Event: ${_event?.title ?? 'Unknown'}
+Total Registrations: ${_filteredRegistrations.length}
+
+Registrations:
+${_filteredRegistrations.map((reg) => '• ${reg.user?.displayName ?? 'N/A'} (${reg.status})').join('\n')}
+''';
+        
+        await Share.share(
+          shareText,
+          subject: 'Event Registrations - ${_event?.title}',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error exporting data', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting: $e')),
+        );
+      }
+    }
   }
 
   @override

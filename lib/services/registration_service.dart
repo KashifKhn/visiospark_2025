@@ -1,9 +1,11 @@
 import '../core/config/supabase_config.dart';
 import '../core/utils/logger.dart';
 import '../models/registration_model.dart';
+import 'notification_service.dart';
 
 class RegistrationService {
   final _client = SupabaseConfig.client;
+  final _notificationService = NotificationService();
 
   // Register for an event
   Future<RegistrationModel> registerForEvent({
@@ -57,8 +59,24 @@ class RegistrationService {
           .select('*, events!inner(*, societies!inner(*))')
           .single();
 
+      final registration = RegistrationModel.fromJson(response);
+      
+      // Send notification
+      await _notificationService.notifyRegistrationConfirmation(
+        eventTitle: registration.event?.title ?? 'Event',
+      );
+      
+      // Schedule reminder notification (1 hour before event)
+      if (registration.event?.dateTime != null) {
+        await _notificationService.notifyUpcomingEvent(
+          eventId: eventId,
+          eventTitle: registration.event!.title,
+          eventTime: registration.event!.dateTime,
+        );
+      }
+      
       AppLogger.success('User registered for event');
-      return RegistrationModel.fromJson(response);
+      return registration;
     } catch (e) {
       AppLogger.error('Error registering for event', e);
       rethrow;
@@ -74,7 +92,6 @@ class RegistrationService {
           .from('event_registrations')
           .update({
             'status': 'cancelled',
-            'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', registrationId);
 
@@ -94,7 +111,6 @@ class RegistrationService {
           .from('event_registrations')
           .update({
             'status': 'attended',
-            'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', registrationId);
 
