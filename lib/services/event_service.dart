@@ -337,21 +337,44 @@ class EventService {
     try {
       AppLogger.debug('Fetching answers for question: $questionId');
       
-      final response = await _client
+      // First get the answers
+      final answersResponse = await _client
           .from('event_answers')
-          .select('*, profiles(full_name)')
+          .select('*')
           .eq('question_id', questionId)
           .order('created_at', ascending: true);
 
-      final answers = response as List;
+      final answers = answersResponse as List;
       
-      AppLogger.success('Fetched ${answers.length} answers');
-      return answers.map((a) => {
-        'id': a['id'],
-        'answer': a['answer'],
-        'user_name': a['profiles']?['full_name'] ?? 'Anonymous',
-        'created_at': DateTime.parse(a['created_at']),
-      }).toList();
+      // Then get user details for each answer
+      final enrichedAnswers = <Map<String, dynamic>>[];
+      for (final answer in answers) {
+        String userName = 'Anonymous';
+        
+        try {
+          final userProfile = await _client
+              .from('profiles')
+              .select('full_name')
+              .eq('id', answer['user_id'])
+              .maybeSingle();
+          
+          if (userProfile != null && userProfile['full_name'] != null) {
+            userName = userProfile['full_name'];
+          }
+        } catch (e) {
+          AppLogger.debug('Could not fetch user profile for answer: ${answer['id']}');
+        }
+        
+        enrichedAnswers.add({
+          'id': answer['id'],
+          'answer': answer['answer'],
+          'user_name': userName,
+          'created_at': DateTime.parse(answer['created_at']),
+        });
+      }
+      
+      AppLogger.success('Fetched ${enrichedAnswers.length} answers');
+      return enrichedAnswers;
     } catch (e) {
       AppLogger.error('Error fetching answers', e);
       rethrow;

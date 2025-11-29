@@ -725,39 +725,63 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ],
         ),
         child: SafeArea(
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      AppConstants.editEventRoute,
-                      arguments: widget.eventId,
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: _getSocietyColor()),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final result = await Navigator.pushNamed(
+                          context,
+                          AppConstants.editEventRoute,
+                          arguments: widget.eventId,
+                        );
+                        
+                        // Refresh event details if updated
+                        if (result == true && mounted) {
+                          _loadEventDetails();
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: _getSocietyColor()),
+                      ),
+                      child: const Text('Edit Event'),
+                    ),
                   ),
-                  child: const Text('Edit Event'),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppConstants.eventRegistrationsRoute,
+                          arguments: widget.eventId,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _getSocietyColor(),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('View Registrations'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      AppConstants.eventRegistrationsRoute,
-                      arguments: widget.eventId,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _getSocietyColor(),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('View Registrations'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _deleteEvent,
+                icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                label: const Text(
+                  'Delete Event',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: AppColors.error),
+                  minimumSize: const Size(double.infinity, 0),
                 ),
               ),
             ],
@@ -1373,6 +1397,57 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return '${difference.inDays}d ago';
     } else {
       return '${difference.inDays ~/ 7}w ago';
+    }
+  }
+  
+  // Delete event
+  Future<void> _deleteEvent() async {
+    if (_event == null) return;
+    
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text(
+          'Are you sure you want to permanently delete "${_event!.title}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true || !mounted) return;
+    
+    try {
+      await _eventService.deleteEvent(widget.eventId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Event deleted successfully')),
+        );
+        
+        // Go back to previous screen
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      AppLogger.error('Error deleting event', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting event: $e')),
+        );
+      }
     }
   }
   

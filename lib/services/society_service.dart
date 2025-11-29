@@ -119,11 +119,26 @@ class SocietyService {
           .count();
 
       // Get total registrations count
-      final registrationsCount = await _client
-          .from('event_registrations')
+      // First get all event IDs for this society
+      final eventsResponse = await _client
+          .from('events')
           .select('id')
-          .eq('society_id', societyId)
-          .count();
+          .eq('society_id', societyId);
+      
+      final eventIds = (eventsResponse as List)
+          .map((e) => e['id'] as String)
+          .toList();
+      
+      // Then count registrations for those events
+      int registrationsTotalCount = 0;
+      if (eventIds.isNotEmpty) {
+        final registrationsCount = await _client
+            .from('event_registrations')
+            .select('id')
+            .inFilter('event_id', eventIds)
+            .count();
+        registrationsTotalCount = registrationsCount.count;
+      }
 
       // Get upcoming events count
       final upcomingCount = await _client
@@ -135,7 +150,7 @@ class SocietyService {
 
       final stats = {
         'total_events': eventsCount.count,
-        'total_registrations': registrationsCount.count,
+        'total_registrations': registrationsTotalCount,
         'upcoming_events': upcomingCount.count,
       };
 
