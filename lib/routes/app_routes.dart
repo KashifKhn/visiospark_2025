@@ -32,6 +32,13 @@ import '../screens/static/privacy_policy_screen.dart';
 import '../screens/static/terms_screen.dart';
 import '../screens/static/support_screen.dart';
 
+import '../screens/events/events_list_screen.dart';
+import '../screens/events/event_detail_screen.dart';
+import '../screens/events/my_events_screen.dart';
+import '../screens/events/event_form_screen.dart';
+import '../screens/events/event_registrations_screen.dart';
+import '../screens/events/event_feedback_screen.dart';
+
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes {
     return {
@@ -53,6 +60,10 @@ class AppRoutes {
       AppConstants.privacyPolicyRoute: (context) => const PrivacyPolicyScreen(),
       AppConstants.termsRoute: (context) => const TermsScreen(),
       AppConstants.supportRoute: (context) => const SupportScreen(),
+      
+      // Event routes (simple ones without arguments)
+      AppConstants.eventsRoute: (context) => const EventsListScreen(),
+      AppConstants.myEventsRoute: (context) => const MyEventsScreen(),
     };
   }
 
@@ -87,6 +98,48 @@ class AppRoutes {
         if (post != null) {
           return MaterialPageRoute(
             builder: (context) => EditPostScreen(post: post),
+          );
+        }
+        return null;
+
+      // Event routes with arguments
+      case AppConstants.eventDetailRoute:
+        final eventId = settings.arguments as String?;
+        if (eventId != null) {
+          return MaterialPageRoute(
+            builder: (context) => EventDetailScreen(eventId: eventId),
+          );
+        }
+        return null;
+
+      case AppConstants.createEventRoute:
+        return MaterialPageRoute(
+          builder: (context) => const EventFormScreen(),
+        );
+
+      case AppConstants.editEventRoute:
+        final eventId = settings.arguments as String?;
+        if (eventId != null) {
+          return MaterialPageRoute(
+            builder: (context) => EventFormScreen(eventId: eventId),
+          );
+        }
+        return null;
+
+      case AppConstants.eventRegistrationsRoute:
+        final eventId = settings.arguments as String?;
+        if (eventId != null) {
+          return MaterialPageRoute(
+            builder: (context) => EventRegistrationsScreen(eventId: eventId),
+          );
+        }
+        return null;
+
+      case AppConstants.eventFeedbackRoute:
+        final eventId = settings.arguments as String?;
+        if (eventId != null) {
+          return MaterialPageRoute(
+            builder: (context) => EventFeedbackScreen(eventId: eventId),
           );
         }
         return null;
