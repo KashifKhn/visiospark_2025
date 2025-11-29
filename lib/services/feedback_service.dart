@@ -84,16 +84,48 @@ class FeedbackService {
     try {
       AppLogger.debug('Fetching event feedback: $eventId');
       
-      // Fetch feedback without profiles join (will be null in model)
+      // Fetch feedback without join (since foreign key might not be named correctly)
       final response = await _client
           .from('event_feedback')
           .select('*')
           .eq('event_id', eventId)
           .order('created_at', ascending: false);
 
-      final feedbacks = (response as List)
-          .map((json) => FeedbackModel.fromJson(json))
+      final feedbackList = response as List;
+      
+      if (feedbackList.isEmpty) {
+        AppLogger.success('Fetched 0 feedbacks');
+        return [];
+      }
+
+      // Fetch user profiles separately
+      final userIds = feedbackList
+          .map((f) => f['user_id'] as String)
+          .toSet()
           .toList();
+
+      final profilesResponse = await _client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .inFilter('id', userIds);
+
+      // Create a map of userId -> profile
+      final profilesMap = <String, Map<String, dynamic>>{};
+      for (var profile in profilesResponse as List) {
+        profilesMap[profile['id'] as String] = profile;
+      }
+
+      // Combine feedback with profiles
+      final feedbacks = feedbackList.map((json) {
+        final userId = json['user_id'] as String;
+        final profile = profilesMap[userId];
+        
+        final modifiedJson = Map<String, dynamic>.from(json);
+        modifiedJson['user_name'] = profile?['full_name'] as String? ?? 'Anonymous';
+        modifiedJson['user_avatar'] = profile?['avatar_url'] as String?;
+        
+        return FeedbackModel.fromJson(modifiedJson);
+      }).toList();
 
       AppLogger.success('Fetched ${feedbacks.length} feedbacks');
       return feedbacks;

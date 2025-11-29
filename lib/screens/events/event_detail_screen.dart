@@ -15,6 +15,8 @@ import '../../models/ai_message_model.dart';
 import '../../theme/app_colors.dart';
 import '../../core/constants/constants.dart';
 import '../../core/utils/logger.dart';
+import 'event_teams_screen.dart';
+import '../../widgets/common/feedback_dialog.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -129,6 +131,50 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         backgroundColor: isError ? AppColors.error : AppColors.success,
       ),
     );
+  }
+
+  void _openTeamsScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EventTeamsScreen(eventId: widget.eventId),
+      ),
+    );
+  }
+
+  Future<void> _showFeedbackDialog() async {
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.user?.id;
+
+    if (userId == null) return;
+
+    // Check if user already submitted feedback
+    FeedbackModel? existingFeedback;
+    try {
+      existingFeedback = await _feedbackService.getUserEventFeedback(
+        widget.eventId,
+        userId,
+      );
+    } catch (e) {
+      AppLogger.error('Error checking feedback', e);
+    }
+
+    if (!mounted) return;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => FeedbackDialog(
+        eventId: widget.eventId,
+        userId: userId,
+        eventTitle: _event?.title ?? 'Event',
+        existingFeedback: existingFeedback,
+      ),
+    );
+
+    // Reload feedbacks if submitted
+    if (result == true && mounted) {
+      _loadEventDetails();
+    }
   }
 
   Color _getSocietyColor() {
@@ -803,53 +849,114 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ],
       ),
       child: SafeArea(
-        child: _isRegistered
-            ? ElevatedButton(
-                onPressed: null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  disabledBackgroundColor: AppColors.success.withValues(alpha: 0.5),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Already Registered',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isRegistered)
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            disabledBackgroundColor: AppColors.success.withValues(alpha: 0.5),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                'Registered',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openTeamsScreen,
+                          icon: const Icon(Icons.groups),
+                          label: const Text('Teams'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            side: BorderSide(color: _getSocietyColor()),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _showFeedbackDialog,
+                      icon: const Icon(Icons.star_border),
+                      label: const Text('Rate This Event'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: _getSocietyColor()),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               )
-            : ElevatedButton(
-                onPressed: _event!.isFull || _isRegistering ? null : _registerForEvent,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _getSocietyColor(),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isRegistering
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(
-                        _event!.isFull ? 'Event Full' : 'Register Now',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+            else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _event!.isFull || _isRegistering ? null : _registerForEvent,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _getSocietyColor(),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
+                      child: _isRegistering
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              _event!.isFull ? 'Event Full' : 'Register Now',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _openTeamsScreen,
+                      icon: const Icon(Icons.groups),
+                      label: const Text('Teams'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: _getSocietyColor()),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+          ],
+        ),
       ),
     );
   }
@@ -881,16 +988,61 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   // Q&A Section
   Future<List<EventQuestionModel>> _loadQuestions() async {
     try {
+      // Fetch questions without join
       final response = await SupabaseConfig.client
           .from('event_questions')
           .select('*')
           .eq('event_id', widget.eventId)
           .order('created_at', ascending: false)
           .limit(10);
-          
-      return (response as List)
-          .map((json) => EventQuestionModel.fromJson(json))
-          .toList();
+      
+      final questionsList = response as List;
+      
+      if (questionsList.isEmpty) {
+        return [];
+      }
+
+      // Get question IDs and user IDs
+      final questionIds = questionsList.map((q) => q['id'] as String).toList();
+      final userIds = questionsList.map((q) => q['user_id'] as String).toSet().toList();
+      
+      // Fetch profiles separately
+      final profilesResponse = await SupabaseConfig.client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .inFilter('id', userIds);
+      
+      // Create a map of userId -> profile
+      final profilesMap = <String, Map<String, dynamic>>{};
+      for (var profile in profilesResponse as List) {
+        profilesMap[profile['id'] as String] = profile;
+      }
+      
+      // Fetch answer counts for all questions
+      final answersResponse = await SupabaseConfig.client
+          .from('event_answers')
+          .select('question_id')
+          .inFilter('question_id', questionIds);
+      
+      // Count answers per question
+      final answerCounts = <String, int>{};
+      for (var answer in answersResponse as List) {
+        final questionId = answer['question_id'] as String;
+        answerCounts[questionId] = (answerCounts[questionId] ?? 0) + 1;
+      }
+      
+      return questionsList.map((json) {
+        final userId = json['user_id'] as String;
+        final profile = profilesMap[userId];
+        
+        // Create a modified json with user_name, user_avatar, and answer_count
+        final modifiedJson = Map<String, dynamic>.from(json);
+        modifiedJson['user_name'] = profile?['full_name'] as String? ?? 'Anonymous';
+        modifiedJson['user_avatar'] = profile?['avatar_url'] as String?;
+        modifiedJson['answer_count'] = answerCounts[json['id'] as String] ?? 0;
+        
+        return EventQuestionModel.fromJson(modifiedJson);
+      }).toList();
     } catch (e) {
       AppLogger.error('Error loading questions', e);
       return [];

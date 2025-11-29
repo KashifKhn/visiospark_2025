@@ -16,12 +16,13 @@ class RegistrationService {
     try {
       AppLogger.debug('Registering user for event: $eventId');
       
-      // Check if already registered
+      // Check if already registered (and not cancelled)
       final existing = await _client
           .from('event_registrations')
           .select()
           .eq('event_id', eventId)
           .eq('user_id', userId)
+          .eq('status', 'registered')
           .maybeSingle();
 
       if (existing != null) {
