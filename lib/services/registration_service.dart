@@ -205,11 +205,17 @@ class RegistrationService {
           .eq('user_id', userId)
           .eq('status', 'registered')
           .gte('events.date_time', DateTime.now().toIso8601String())
-          .order('events.date_time');
+          .order('registered_at', ascending: false);
 
       final registrations = (response as List)
           .map((json) => RegistrationModel.fromJson(json))
           .toList();
+
+      // Sort by event date_time in memory
+      registrations.sort((a, b) {
+        if (a.event == null || b.event == null) return 0;
+        return a.event!.dateTime.compareTo(b.event!.dateTime);
+      });
 
       AppLogger.success('Fetched ${registrations.length} upcoming events');
       return registrations;
@@ -228,12 +234,18 @@ class RegistrationService {
           .from('event_registrations')
           .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
           .eq('user_id', userId)
-          .lt('events.end_time', DateTime.now().toIso8601String())
-          .order('events.date_time', ascending: false);
+          .lt('events.date_time', DateTime.now().toIso8601String())
+          .order('registered_at', ascending: false);
 
       final registrations = (response as List)
           .map((json) => RegistrationModel.fromJson(json))
           .toList();
+
+      // Sort by event date_time in memory (most recent first)
+      registrations.sort((a, b) {
+        if (a.event == null || b.event == null) return 0;
+        return b.event!.dateTime.compareTo(a.event!.dateTime);
+      });
 
       AppLogger.success('Fetched ${registrations.length} past events');
       return registrations;

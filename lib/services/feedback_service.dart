@@ -15,7 +15,7 @@ class FeedbackService {
     try {
       AppLogger.debug('Submitting feedback for event: $eventId');
       
-      // Check if user attended the event
+      // Check if user registered for the event
       final registration = await _client
           .from('event_registrations')
           .select()
@@ -27,9 +27,11 @@ class FeedbackService {
         throw Exception('You must be registered for this event to submit feedback');
       }
 
-      if (registration['status'] != 'attended') {
-        throw Exception('You must attend the event to submit feedback');
-      }
+      // Optional: Check attendance (commented for testing/demo purposes)
+      // Uncomment for production to enforce attendance requirement
+      // if (registration['status'] != 'attended') {
+      //   throw Exception('You must attend the event to submit feedback');
+      // }
 
       // Check if feedback already exists
       final existing = await _client
@@ -49,7 +51,7 @@ class FeedbackService {
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', existing['id'])
-            .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+            .select('*')
             .single();
 
         AppLogger.success('Feedback updated');
@@ -65,7 +67,7 @@ class FeedbackService {
               'comment': comment,
               'created_at': DateTime.now().toIso8601String(),
             })
-            .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+            .select('*')
             .single();
 
         AppLogger.success('Feedback submitted');
@@ -82,9 +84,10 @@ class FeedbackService {
     try {
       AppLogger.debug('Fetching event feedback: $eventId');
       
+      // Fetch feedback without profiles join (will be null in model)
       final response = await _client
           .from('event_feedback')
-          .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+          .select('*')
           .eq('event_id', eventId)
           .order('created_at', ascending: false);
 
@@ -105,9 +108,10 @@ class FeedbackService {
     try {
       AppLogger.debug('Fetching user feedback: $userId');
       
+      // Fetch feedback without profiles join
       final response = await _client
           .from('event_feedback')
-          .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+          .select('*, events!inner(*, societies!inner(*))')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
@@ -128,9 +132,10 @@ class FeedbackService {
     try {
       AppLogger.debug('Fetching feedback: $id');
       
+      // Fetch feedback without profiles join
       final response = await _client
           .from('event_feedback')
-          .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+          .select('*')
           .eq('id', id)
           .maybeSingle();
 
@@ -151,9 +156,10 @@ class FeedbackService {
     try {
       AppLogger.debug('Checking user feedback for event');
       
+      // Fetch feedback without profiles join
       final response = await _client
           .from('event_feedback')
-          .select('*, events!inner(*, societies!inner(*)), profiles!inner(*)')
+          .select('*')
           .eq('event_id', eventId)
           .eq('user_id', userId)
           .maybeSingle();

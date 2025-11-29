@@ -629,7 +629,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 CircleAvatar(
                   backgroundColor: _getSocietyColor().withValues(alpha: 0.2),
                   child: Text(
-                    feedback.user?.fullName?.substring(0, 1).toUpperCase() ?? 'U',
+                    feedback.authorName.substring(0, 1).toUpperCase(),
                     style: TextStyle(
                       color: _getSocietyColor(),
                       fontWeight: FontWeight.bold,
@@ -642,7 +642,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        feedback.user?.fullName ?? 'Anonymous',
+                        feedback.authorName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,

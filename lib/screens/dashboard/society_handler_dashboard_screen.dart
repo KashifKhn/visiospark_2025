@@ -103,8 +103,14 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, AppConstants.createEventRoute);
+        onPressed: () async {
+          final result = await Navigator.pushNamed(
+            context,
+            AppConstants.createEventRoute,
+          );
+          if (result == true) {
+            _loadDashboardData();
+          }
         },
         icon: const Icon(Icons.add),
         label: const Text('Create Event'),
@@ -206,6 +212,20 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.shield, color: Colors.white70, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                '${_society?.shortName ?? 'Society'} Handler',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -286,12 +306,18 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
         Row(
           children: [
             Expanded(
-              child: _buildQuickActionCard(
+               child: _buildQuickActionCard(
                 'Create Event',
                 Icons.add_circle_outline,
                 AppColors.primary,
-                () {
-                  Navigator.pushNamed(context, AppConstants.createEventRoute);
+                () async {
+                  final result = await Navigator.pushNamed(
+                    context,
+                    AppConstants.createEventRoute,
+                  );
+                  if (result == true) {
+                    _loadDashboardData();
+                  }
                 },
               ),
             ),
@@ -432,6 +458,13 @@ class _SocietyHandlerDashboardScreenState extends State<SocietyHandlerDashboardS
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppConstants.eventDetailRoute,
+            arguments: event.id,
+          );
+        },
         leading: Container(
           width: 50,
           height: 50,
