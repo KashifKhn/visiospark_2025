@@ -34,17 +34,19 @@ class TeamModel {
       name: json['name'] as String,
       description: json['description'] as String?,
       maxMembers: json['max_members'] as int? ?? 5,
-      createdBy: json['created_by'] as String,
+      createdBy: json['creator_id'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       memberCount: json['member_count'] as int?,
-      members: json['team_members'] != null
+      members: json['team_members'] != null && json['team_members'] is List
           ? (json['team_members'] as List)
               .map((m) => TeamMemberModel.fromJson(m))
               .toList()
           : null,
-      eventTitle: json['events'] != null
-          ? (json['events'] as Map<String, dynamic>)['title'] as String?
+      eventTitle: json['events'] != null && json['events'] is Map
+          ? (json['events'] as Map<String, dynamic>?)?.containsKey('title') == true
+              ? (json['events'] as Map<String, dynamic>)['title'] as String?
+              : null
           : null,
     );
   }
@@ -56,7 +58,7 @@ class TeamModel {
       'name': name,
       'description': description,
       'max_members': maxMembers,
-      'created_by': createdBy,
+      'creator_id': createdBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

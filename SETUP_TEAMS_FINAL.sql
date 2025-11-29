@@ -1,13 +1,10 @@
--- Drop existing policies if they exist (to avoid conflicts)
-DROP POLICY IF EXISTS "Anyone can view teams" ON teams;
-DROP POLICY IF EXISTS "Authenticated users can create teams" ON teams;
-DROP POLICY IF EXISTS "Team creator can update team" ON teams;
-DROP POLICY IF EXISTS "Team creator can delete team" ON teams;
-DROP POLICY IF EXISTS "Anyone can view team members" ON team_members;
-DROP POLICY IF EXISTS "Team leader can add members" ON team_members;
-DROP POLICY IF EXISTS "Team members can leave" ON team_members;
-DROP POLICY IF EXISTS "Team members can view messages" ON team_messages;
-DROP POLICY IF EXISTS "Team members can send messages" ON team_messages;
+-- ============================================
+-- UNIWEEK TEAMS SYSTEM - SINGLE SETUP SCRIPT
+-- Run this entire script in Supabase SQL Editor
+-- ============================================
+
+-- Step 1: Create tables first (if they don't exist)
+-- ============================================
 
 -- Teams table
 CREATE TABLE IF NOT EXISTS teams (
@@ -44,17 +41,41 @@ CREATE TABLE IF NOT EXISTS team_messages (
 ALTER TABLE event_registrations 
 ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
 
--- Create indexes
+
+-- Step 2: Create indexes
+-- ============================================
+
 CREATE INDEX IF NOT EXISTS idx_teams_event_id ON teams(event_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_team_messages_team_id ON team_messages(team_id);
 CREATE INDEX IF NOT EXISTS idx_event_registrations_team_id ON event_registrations(team_id);
 
--- Enable RLS (only if not already enabled)
+
+-- Step 3: Enable RLS
+-- ============================================
+
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_messages ENABLE ROW LEVEL SECURITY;
+
+
+-- Step 4: Drop old policies (now tables exist)
+-- ============================================
+
+DROP POLICY IF EXISTS "Anyone can view teams" ON teams;
+DROP POLICY IF EXISTS "Authenticated users can create teams" ON teams;
+DROP POLICY IF EXISTS "Team creator can update team" ON teams;
+DROP POLICY IF EXISTS "Team creator can delete team" ON teams;
+DROP POLICY IF EXISTS "Anyone can view team members" ON team_members;
+DROP POLICY IF EXISTS "Team leader can add members" ON team_members;
+DROP POLICY IF EXISTS "Team members can leave" ON team_members;
+DROP POLICY IF EXISTS "Team members can view messages" ON team_messages;
+DROP POLICY IF EXISTS "Team members can send messages" ON team_messages;
+
+
+-- Step 5: Create RLS Policies
+-- ============================================
 
 -- RLS Policies for teams
 CREATE POLICY "Anyone can view teams" ON teams 
@@ -106,3 +127,15 @@ CREATE POLICY "Team members can send messages" ON team_messages
         )
         AND auth.uid() = user_id
     );
+
+
+-- Step 6: Verify setup
+-- ============================================
+
+-- Run this to confirm tables were created:
+SELECT 
+    table_name,
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
+FROM information_schema.tables t
+WHERE table_name IN ('teams', 'team_members', 'team_messages')
+ORDER BY table_name;

@@ -24,7 +24,7 @@ class TeamService {
             'name': name,
             'description': description,
             'max_members': maxMembers,
-            'created_by': userId,
+            'creator_id': userId,
           })
           .select()
           .single();
@@ -51,24 +51,31 @@ class TeamService {
     try {
       AppLogger.debug('Fetching teams for event: $eventId');
       
-      final response = await _client
+      // First, get all teams
+      final teamsResponse = await _client
           .from('teams')
-          .select('*, team_members(count)')
+          .select('*')
           .eq('event_id', eventId)
           .order('created_at', ascending: false);
 
-      final teams = (response as List).map((json) {
-        // Count members
-        final membersData = json['team_members'] as List?;
-        final memberCount = membersData?.isNotEmpty == true 
-            ? membersData!.length 
-            : 0;
+      // Then get member counts separately
+      final teams = <TeamModel>[];
+      for (final teamJson in (teamsResponse as List)) {
+        final teamId = teamJson['id'] as String;
         
-        final modifiedJson = Map<String, dynamic>.from(json);
+        // Get member count for this team
+        final membersResponse = await _client
+            .from('team_members')
+            .select('id')
+            .eq('team_id', teamId);
+        
+        final memberCount = (membersResponse as List).length;
+        
+        final modifiedJson = Map<String, dynamic>.from(teamJson);
         modifiedJson['member_count'] = memberCount;
         
-        return TeamModel.fromJson(modifiedJson);
-      }).toList();
+        teams.add(TeamModel.fromJson(modifiedJson));
+      }
 
       AppLogger.success('Fetched ${teams.length} teams');
       return teams;
@@ -105,14 +112,17 @@ class TeamService {
       // Check if team is full
       final team = await _client
           .from('teams')
-          .select('max_members, team_members(count)')
+          .select('max_members')
           .eq('id', teamId)
           .single();
 
-      final membersData = team['team_members'] as List?;
-      final memberCount = membersData?.isNotEmpty == true 
-          ? membersData!.length 
-          : 0;
+      // Get current member count
+      final membersResponse = await _client
+          .from('team_members')
+          .select('id')
+          .eq('team_id', teamId);
+      
+      final memberCount = (membersResponse as List).length;
       final maxMembers = team['max_members'] as int;
 
       if (memberCount >= maxMembers) {
