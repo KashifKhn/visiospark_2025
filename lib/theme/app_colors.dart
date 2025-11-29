@@ -75,4 +75,24 @@ class AppColors {
   static const Color online = Color(0xFF10B981);
   static const Color offline = Color(0xFF9CA3AF);
   static const Color away = Color(0xFFF59E0B);
+
+  // Society Colors (UniWeek)
+  static const Color acmColor = Color(0xFF6366F1); // Indigo - Technical
+  static const Color clsColor = Color(0xFFEC4899); // Pink - Literary & Culture
+  static const Color cssColor = Color(0xFF10B981); // Green - Sports
+
+  static const List<Color> acmGradient = [
+    Color(0xFF6366F1),
+    Color(0xFF8B5CF6),
+  ];
+
+  static const List<Color> clsGradient = [
+    Color(0xFFEC4899),
+    Color(0xFFF472B6),
+  ];
+
+  static const List<Color> cssGradient = [
+    Color(0xFF10B981),
+    Color(0xFF34D399),
+  ];
 }

@@ -64,6 +64,26 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  Widget _buildSocietyBadge(String name, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Text(
+        name,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -120,7 +140,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ],
                       ),
                       child: const Icon(
-                        Icons.rocket_launch_rounded,
+                        Icons.calendar_month_rounded,
                         size: 60,
                         color: Colors.white,
                       ),
@@ -132,10 +152,11 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
-                    'VisioSpark',
+                    'UniWeek',
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
+                          letterSpacing: 1.5,
                         ),
                   ),
                 ),
@@ -144,12 +165,28 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
-                    'Innovate. Create. Inspire.',
+                    'Student Week Event Management',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: isDark
                               ? AppColors.textSecondaryDark
                               : AppColors.textSecondaryLight,
+                          fontWeight: FontWeight.w500,
                         ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSocietyBadge('ACM', const Color(0xFF6366F1)),
+                      const SizedBox(width: 12),
+                      _buildSocietyBadge('CLS', const Color(0xFFEC4899)),
+                      const SizedBox(width: 12),
+                      _buildSocietyBadge('CSS', const Color(0xFF10B981)),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 60),

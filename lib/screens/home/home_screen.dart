@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/constants.dart';
-import '../dashboard/dashboard_screen.dart';
+import '../dashboard/student_dashboard_screen.dart';
+import '../dashboard/society_handler_dashboard_screen.dart';
 import '../chat/chat_list_screen.dart';
 import '../forum/forum_list_screen.dart';
-
 import '../profile/profile_screen.dart';
-import '../events/events_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,13 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // Define screens based on role
     final screens = isSocietyHandler
         ? [
-            const DashboardScreen(), // Society Dashboard
+            const SocietyHandlerDashboardScreen(), // Society Handler Dashboard
             const ChatListScreen(),
             const ForumListScreen(),
             const ProfileScreen(),
           ]
         : [
-            const EventsListScreen(), // Student Events List
+            const StudentDashboardScreen(), // Student Dashboard
             const ChatListScreen(),
             const ForumListScreen(),
             const ProfileScreen(),
@@ -68,9 +67,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ]
         : const [
             NavigationDestination(
-              icon: Icon(Icons.event_outlined),
-              selectedIcon: Icon(Icons.event),
-              label: 'Events',
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
             ),
             NavigationDestination(
               icon: Icon(Icons.chat_outlined),
@@ -103,15 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         destinations: destinations,
       ),
-      floatingActionButton: isSocietyHandler
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.pushNamed(context, AppConstants.createEventRoute);
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Create Event'),
-            )
-          : null,
     );
   }
 }
